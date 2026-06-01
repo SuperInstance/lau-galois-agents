@@ -1,111 +1,129 @@
 # lau-galois-agents
 
-**Galois theory applied to agent capability spaces — determining which capabilities are constructible and which are fundamentally impossible.**
+**Galois theory applied to agent capability spaces.**
 
-Part of the [PLATO/LAU ecosystem](https://github.com/SuperInstance) — mathematically rigorous tools for building composable, analyzable agent systems.
+[![Tests](https://img.shields.io/badge/tests-111-passing-brightgreen)]()
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)]()
 
 ---
 
 ## What This Does
 
-This crate maps classical Galois theory onto agent design:
+This crate models an AI agent's **capability space** as an algebraic field. You define what an agent can do, extend it with new capabilities, and then use Galois theory to answer fundamental questions:
 
-| Galois Theory | Agent Analogue |
-|---|---|
-| Field F | An agent's base capability set |
-| Field extension K/F | Adding new capabilities to an agent |
-| Galois group Gal(K/F) | Symmetries that permute capabilities while preserving behavior |
-| Fundamental theorem | Bijection: subgroups ↔ intermediate capability sets |
-| Solvable group | Capabilities you can build step-by-step |
-| Insolvable group (S₅) | Capability combinations that **cannot** be constructed |
-| Splitting field | Minimal capability space that resolves all conflicts |
-| Fixed field | Capabilities invariant under a symmetry group |
+- **Which capabilities are constructible?** — Can a capability be built step-by-step, or is it fundamentally unreachable?
+- **What are the symmetries?** — Which capabilities can be swapped without changing the agent's behavior?
+- **What's the lattice of intermediate states?** — How many ways can an agent exist between two configurations?
 
-**The headline result**: just as quintic equations cannot be solved by radicals, some agent capability configurations are *provably impossible* to reach through step-by-step extension.
+The marquee result: just as the insolvability of the quintic proves that some geometric constructions are impossible with ruler and compass, this crate proves that some capability configurations are **fundamentally insolvable** — no sequence of extensions can reach them.
 
 ---
 
 ## Key Idea
 
-An agent's capability space is a **field** — equipped with combination (`+`) and composition (`×`) operations. Extending the agent adds new capabilities, forming a **field extension** K/F. The symmetries that preserve the base capabilities form the **Galois group** Gal(K/F).
+The central metaphor:
 
-The **Fundamental Theorem of Galois Theory** then gives a lattice isomorphism:
+| Galois Theory | Agent Capabilities |
+|---|---|
+| Base field F | Agent's current capabilities |
+| Field extension K/F | Adding new capabilities |
+| Galois group Gal(K/F) | Symmetries preserving behavior |
+| Solvable group | Capabilities that can be built incrementally |
+| Insolvable group (S₅) | Capabilities that **cannot** be constructed |
+| Fundamental theorem | Subgroups ↔ Intermediate capability sets |
 
-```
-Subgroups of Gal(K/F)  ⟷  Intermediate capability sets between F and K
-```
-
-This means you can determine what an agent can and cannot become by analyzing group theory — without enumerating every possible configuration.
+An agent's capabilities form a "field." Extending the field (adding capabilities) creates a "field extension." The symmetries that permute the new capabilities while preserving the base form the "Galois group." The fundamental theorem of Galois theory then establishes an order-reversing bijection between subgroups of the Galois group and intermediate capability sets.
 
 ---
 
 ## Install
 
-```bash
-cargo add lau-galois-agents
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+lau-galois-agents = { git = "https://github.com/SuperInstance/lau-galois-agents" }
 ```
 
-Requires Rust 2021 edition. Dependencies: `serde`, `nalgebra`.
+Or clone and use locally:
+
+```bash
+git clone https://github.com/SuperInstance/lau-galois-agents.git
+# In your Cargo.toml:
+# lau-galois-agents = { path = "../lau-galois-agents" }
+```
+
+**Dependencies:** `serde` (with `derive`), `nalgebra`.
 
 ---
 
 ## Quick Start
 
 ```rust
-use lau_galois_agents::*;
+use lau_galois_agents::{GaloisAgent, GaloisAnalysis};
 
-// 1. Create an agent with base capabilities
-let mut agent = GaloisAgent::new("assistant", vec![
+// Create an agent with base capabilities
+let mut agent = GaloisAgent::new("planner", vec![
     ("perceive", 1),
     ("act", 1),
 ]);
 
-// 2. Extend with new capabilities
+// Extend with new capabilities
 agent.extend("reasoning", vec![
     ("plan", 2),
     ("reason", 3),
 ]);
 
-// 3. Full Galois analysis
+// Analyze the extension
 let analysis = agent.analyze_extension(0).unwrap();
 println!("{}", analysis.summary());
 // Extension 'reasoning': degree=2, Galois group order=1 (abelian),
 // normal=true, Galois=true, solvable=true
 
-// 4. Check constructibility
+// Check constructibility
 assert!(agent.is_constructible(&["plan", "reason"]));
+```
 
-// 5. Find the minimal extension for specific capabilities
-let ext = agent.minimal_extension(&["plan", "reason"]);
-println!("Adjoined: {:?}", ext.adjoined);
+### Analyzing Symmetries
+
+```rust
+use lau_galois_agents::{
+    CapabilityField, Capability, CapabilityExtension,
+    GaloisGroup, FundamentalTheorem,
+};
+
+// Two interchangeable capabilities → non-trivial Galois group
+let base = CapabilityField::new("base");
+let ext = CapabilityExtension::new("symmetric", base, vec![
+    Capability::new("skill_a", 1),
+    Capability::new("skill_b", 1),  // same power → symmetric
+]);
+
+let gal = GaloisGroup::compute(&ext);
+assert_eq!(gal.order(), 2); // S₂: can swap a ↔ b
+
+// The fundamental theorem gives us subgroups ↔ intermediate fields
+let ft = FundamentalTheorem::compute(&ext);
+for corr in &ft.correspondences {
+    println!("Subgroup (order {}) ↔ Field {:?}",
+        corr.subgroup.order(),
+        corr.intermediate_field.capability_names(),
+    );
+}
 ```
 
 ### The Insolvability Result
 
 ```rust
-use lau_galois_agents::solvable::{insolvability_demo, quintic_is_solvable};
-
-// The quintic is NOT solvable — some configurations are unreachable
-assert!(!quintic_is_solvable());
-
-let result = insolvability_demo();
-// 5 capabilities with identical power → S₅ Galois group → insolvable
-```
-
-### Classical Constructibility
-
-```rust
 use lau_galois_agents::constructible::{is_constructible_degree, is_constructible_polygon};
 
-// Only power-of-2 extensions are ruler-and-compass constructible
+// Classical Galois theory: constructible iff degree is a power of 2
 assert!(is_constructible_degree(4));   // ✓
-assert!(!is_constructible_degree(5));  // ✗
+assert!(!is_constructible_degree(5));  // ✗ — the quintic
 
-// Which regular polygons can be constructed?
-assert!(is_constructible_polygon(3));   // triangle ✓
-assert!(is_constructible_polygon(17));  // heptadecagon ✓ (Fermat prime)
-assert!(!is_constructible_polygon(7));  // heptagon ✗
-assert!(!is_constructible_polygon(9));  // nonagon ✗ (3²)
+// Which regular polygons are constructible?
+assert!(is_constructible_polygon(17));  // ✓ — Fermat prime
+assert!(!is_constructible_polygon(7));  // ✗ — not constructible
 ```
 
 ---
@@ -114,402 +132,192 @@ assert!(!is_constructible_polygon(9));  // nonagon ✗ (3²)
 
 ### Core Types
 
-#### `Capability`
-A single capability an agent can possess.
+| Type | Module | Description |
+|---|---|---|
+| `Poset` | `poset` | Finite partially ordered set with joins, meets, lattice check |
+| `GaloisConnection` | `galois_connection` | Adjoint pair of monotone maps between posets |
+| `Capability` | `field` | A single named capability with power level and dependencies |
+| `CapabilityField` | `field` | Algebraic structure of capabilities (combination + composition) |
+| `CapabilityExtension` | `extension` | Adding new capabilities to a base field |
+| `Permutation` | `galois_group` | Permutation with compose, inverse, order, sign |
+| `PermutationGroup` | `galois_group` | Group of permutations (Sₙ, Aₙ, Cₙ, custom) |
+| `GaloisGroup` | `galois_group` | Symmetry group of a capability extension |
+| `FundamentalTheorem` | `fundamental_theorem` | The Galois correspondence: subgroups ↔ intermediate fields |
+| `FixedField` | `fixed` | Capabilities invariant under a subgroup |
+| `ConstructibilityReport` | `constructible` | Full constructibility analysis of an extension |
+| `GaloisAgent` | `agent` | High-level agent API tying everything together |
+
+### `GaloisAgent` — High-Level API
 
 ```rust
-let cap = Capability::new("perceive", 1)           // name, power (degree)
-    .with_dependency("sensor");                     // prerequisite
+let mut agent = GaloisAgent::new("name", vec![("base_cap", 1)]);
+agent.extend("ext_name", vec![("new_cap", 2)]);
+agent.analyze_extension(0);    // Option<GaloisAnalysis>
+agent.analyze_all();           // Vec<GaloisAnalysis>
+agent.is_constructible(&["x"]); // bool
+agent.minimal_extension(&["x", "y"]); // CapabilityExtension
 ```
 
-#### `CapabilityField`
-The algebraic structure of an agent's capabilities — the "field" F.
+### `GaloisAnalysis` — Complete Analysis
+
+Returned by `analyze_extension()`:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `galois_group_order` | `usize` | Number of symmetries |
+| `galois_group_abelian` | `bool` | Whether the Galois group is commutative |
+| `degree` | `usize` | Number of adjoined capabilities |
+| `is_normal` | `bool` | Whether conjugates are complete |
+| `is_separable` | `bool` | Always `true` (characteristic 0) |
+| `is_galois` | `bool` | Normal + separable |
+| `solvability` | `SolvabilityResult` | Can this be built step-by-step? |
+| `constructibility` | `ConstructibilityReport` | Per-capability constructibility |
+
+### `PermutationGroup` — Group Theory
 
 ```rust
-let mut field = CapabilityField::new("base");
-field.add_capability(Capability::new("read", 1));
-field.add_capability(Capability::new("write", 1));
-field.add_combination("read", "write", "literacy");  // read + write = literacy
-field.add_composition("plan", "execute", "agent");    // plan × execute = agent
+PermutationGroup::symmetric(3);   // S₃ (order 6)
+PermutationGroup::cyclic(4);      // C₄ (order 4)
+PermutationGroup::alternating(4); // A₄ (order 12)
+PermutationGroup::trivial(3);     // {e} (order 1)
 
-field.combine("read", "write");   // Some("literacy")
-field.compose("plan", "execute"); // Some("agent")
-field.degree();                    // 2
-field.contains("read");            // true
+group.order();                    // |G|
+group.is_abelian();               // commutative?
+group.is_solvable();              // solvable?
+group.subgroups();                // all subgroups
+group.center();                   // Z(G)
+group.index_of(&sub);            // [G:H]
 ```
 
-Operations: `intersection` (greatest common subfield), `compositum` (least common extension), `to_poset` (dependency ordering), `is_subfield_of`, `equals`.
-
-#### `CapabilityExtension`
-A field extension K/F — adding new capabilities to a base field.
+### `CapabilityField` — The Algebra
 
 ```rust
-let ext = CapabilityExtension::new("upgrade", base_field, vec![
-    Capability::new("plan", 2),
-    Capability::new("reason", 3),
-]);
+let mut f = CapabilityField::new("my_field");
+f.add_capability(Capability::new("read", 1));
+f.add_combination("read", "write", "literacy");
+f.add_composition("plan", "execute", "agent");
 
-ext.degree();               // size ratio of extended to base
-ext.is_simple();            // generated by single element?
-ext.is_trivial();           // base == extended?
-ext.minimal_degree();       // power of the adjoined element (simple extensions)
-ext.intermediate_fields();  // all fields between base and extended (2^n - 1)
-ext.tower();                // decompose into simple extensions
-```
-
-#### `Poset` and `PosetElement`
-Finite partially ordered sets — the foundation for Galois connections.
-
-```rust
-let mut p = Poset::new();
-p.add_element(PosetElement::new("a"));
-p.add_element(PosetElement::new("b"));
-p.add_relation(&PosetElement::new("a"), &PosetElement::new("b"));
-
-p.leq(&a, &b);      // a ≤ b (reflexive)
-p.lt(&a, &b);       // a < b (strict, transitive)
-p.join(&a, &b);     // least upper bound
-p.meet(&a, &b);     // greatest lower bound
-p.is_lattice();     // all pairs have joins and meets?
-p.bottom();         // least element
-p.top();            // greatest element
-```
-
-Also: `Poset::powerset_lattice(items)` — generates the subset lattice.
-
-#### `GaloisConnection`
-Adjoint functors between posets — the poset-level Galois connection.
-
-```rust
-let gc = GaloisConnection::new("name", poset_p, poset_q, left_adjoint, right_adjoint);
-
-gc.apply_left(&p);          // f: P → Q
-gc.apply_right(&q);         // g: Q → P
-gc.verify();                // f(p) ≤ q ⟺ p ≤ g(q) for all pairs
-gc.closure(&p);             // g ∘ f (closure operator)
-gc.kernel(&q);              // f ∘ g (kernel operator)
-gc.is_closure_idempotent(); // c(c(p)) = c(p)
-gc.is_closure_extensive();  // p ≤ c(p)
-gc.closed_elements();       // fixed points of closure
-gc.compose(&other);         // compose two connections
-```
-
-### Galois Group
-
-#### `Permutation` and `PermutationGroup`
-Explicit permutation group computations.
-
-```rust
-// Constructors
-Permutation::identity(3);
-Permutation::transposition(3, 0, 2);       // swap positions 0,2
-Permutation::cycle(3, &[0, 1, 2]);         // 0→1→2→0
-
-// Operations
-perm.compose(&other);    // composition
-perm.inverse();          // inverse
-perm.order();            // smallest n where σⁿ = id
-perm.sign();             // +1 (even) or -1 (odd)
-perm.is_identity();
-
-// Named groups
-PermutationGroup::symmetric(3);    // S₃, order 6
-PermutationGroup::cyclic(3);       // C₃, order 3
-PermutationGroup::alternating(3);  // A₃, order 3
-PermutationGroup::trivial(3);      // {e}, order 1
-
-// Properties
-group.order();
-group.is_abelian();
-group.center();                     // Z(G)
-group.is_subgroup_of(&other);
-group.index_of(&subgroup);          // [G:H]
-group.subgroups();                   // enumerate all subgroups
-group.apply_to_strings(&perm, &items);
-```
-
-#### `GaloisGroup`
-The Galois group of a capability extension.
-
-```rust
-let gal = GaloisGroup::compute(&extension);
-
-gal.order();                   // |Gal(K/F)|
-gal.is_galois(&extension);     // |Gal| = degree?
-gal.subgroups();               // all subgroups of the Galois group
-gal.fixed_field(&extension);   // Fix(Gal) — should be the base field
-```
-
-Automorphisms permute adjoined capabilities with the same power and dependency structure.
-
-### Fundamental Theorem
-
-#### `FundamentalTheorem`
-The bijection between subgroups and intermediate fields.
-
-```rust
-let ft = FundamentalTheorem::compute(&extension);
-
-ft.correspondences;              // Vec<GaloisCorrespondence>
-ft.subgroup_for_field(&field);   // find subgroup ↔ field
-ft.field_for_subgroup(&group);   // find field ↔ subgroup
-ft.verify_bijection();           // check the correspondence is well-defined
-ft.subgroup_lattice();           // inclusion ordering on subgroups
-ft.is_normal_correspondence(&c); // is the subgroup normal?
-```
-
-Each `GaloisCorrespondence` contains: `subgroup`, `intermediate_field`, `index`.
-
-### Normal Extensions
-
-```rust
-let check: NormalityCheck = extension.is_normal();
-check.is_normal;     // bool
-check.reasons;       // Vec<String> explaining why/why not
-
-let closure = extension.normal_closure();  // smallest normal extension
-extension.is_separable();                  // always true in characteristic 0
-extension.is_galois();                     // normal + separable
-```
-
-### Solvability
-
-```rust
-let result: SolvabilityResult = extension.solvability();
-result.is_solvable;           // can it be built step-by-step?
-result.is_constructible;      // same as is_solvable
-result.composition_series;    // derived series G ⊵ G' ⊵ G'' ⊵ ...
-result.construction_steps;    // Vec<String> of step descriptions
-
-// Group-level
-group.is_solvable();
-group.derived_subgroup();     // [G, G]
-group.composition_series();   // derived series as CompositionSeries
-
-// Classical results
-quintic_is_solvable();        // false — the insolvability of the quintic
-insolvability_demo();         // full demo with 5 capabilities
-```
-
-### Splitting Fields
-
-```rust
-// Define capability "polynomials" (conflicts that need resolving)
-let p1 = CapabilityPolynomial::quadratic("conflict_a", "cap_x", "cap_y");
-let p2 = CapabilityPolynomial::linear("simple", "cap_z");
-
-// Compute minimal field where all polynomials split
-let sf = SplittingField::compute(base_field, vec![p1, p2]);
-sf.verify_splitting();     // all roots present?
-sf.degree();                // degree of the splitting extension
-sf.is_normal();             // splitting fields are always normal
-```
-
-Also: `CapabilityPolynomial::quintic(...)` — the famous degree-5 case.
-
-### Fixed Fields
-
-```rust
-// Fixed field of a specific subgroup
-let ff = FixedField::compute(&subgroup, &extension);
-ff.field;                  // the fixed CapabilityField
-ff.fixed_capabilities;     // capabilities unchanged by the subgroup
-ff.moved_capabilities;     // capabilities moved by the subgroup
-ff.artin_index(&extension); // [K : Fix(H)] = |H|
-
-// Convenience constructors
-FixedField::full_galois_fixed(&extension);   // Fix(Gal) = base field
-FixedField::trivial_fixed(&extension);        // Fix({e}) = full extension
-```
-
-### Constructibility
-
-```rust
-let report = ConstructibilityReport::analyze(&extension);
-
-report.is_constructible("plan");           // bool
-report.insolvable_capabilities();          // Vec<&str> of impossible caps
-report.constructible_count;
-report.insolvable_count;
-report.summary();                          // human-readable string
-
-// Per-capability analysis
-for analysis in &report.analyses {
-    println!("{}: {} (|Gal|={}, abelian={})",
-        analysis.capability_name,
-        analysis.constructibility,  // Trivial / Constructible / Insolvable
-        analysis.galois_group_order,
-        analysis.galois_group_abelian,
-    );
-}
-```
-
-### High-Level Agent API
-
-#### `GaloisAgent`
-The main entry point for analyzing agents.
-
-```rust
-let mut agent = GaloisAgent::new("my_agent", vec![
-    ("perceive", 1), ("act", 1),
-]);
-
-agent.extend("step1", vec![("plan", 2), ("execute", 2)]);
-agent.extend("step2", vec![("reason", 3)]);
-
-// Analyze one or all extensions
-let analysis: GaloisAnalysis = agent.analyze_extension(0).unwrap();
-let all: Vec<GaloisAnalysis> = agent.analyze_all();
-
-// Check constructibility of capability combinations
-agent.is_constructible(&["plan", "reason"]);
-
-// Get minimal extension
-let ext = agent.minimal_extension(&["plan", "reason"]);
-```
-
-#### `GaloisAnalysis`
-Complete Galois-theoretic analysis of an extension.
-
-```rust
-analysis.extension_name;
-analysis.galois_group_order;        // |Gal|
-analysis.galois_group_abelian;      // is the group abelian?
-analysis.degree;                     // number of adjoined capabilities
-analysis.is_normal;                  // normal extension?
-analysis.is_separable;               // always true
-analysis.is_galois;                  // normal + separable
-analysis.solvability;                // SolvabilityResult
-analysis.constructibility;           // ConstructibilityReport
-analysis.correspondences_count;      // # subgroup-field pairs
-analysis.intermediate_fields_count;  // 2^n - 1
-analysis.summary();                  // formatted string
+f.combine("read", "write");   // Some("literacy")
+f.compose("plan", "execute"); // Some("agent")
+f.intersection(&other);       // greatest common subfield
+f.compositum(&other);         // least common extension
+f.to_poset();                 // dependency-ordered poset
 ```
 
 ---
 
 ## How It Works
 
-### Architecture
+The crate is organized in layers, each building on the last:
 
-```
-Poset  ──→  GaloisConnection  ──→  GaloisGroup
-  │                                  │
-  └── CapabilityField ──→ CapabilityExtension
-                              │        │
-                    Normality  │   Solvability
-                    Splitting  │   Constructible
-                    Fixed      │
-                              ▼
-                    FundamentalTheorem
-                    (subgroup ↔ field bijection)
-                              │
-                              ▼
-                        GaloisAgent
-                        (high-level API)
-```
+### Layer 1: Order Theory (`poset`, `galois_connection`)
 
-### Algorithm: Galois Group Computation
+Everything starts with **partially ordered sets** (posets). A `Poset` stores elements and cover relations, computing transitive closure for comparisons. It supports joins (least upper bounds), meets (greatest lower bounds), and can test if it forms a lattice.
 
-1. Enumerate all permutations of adjoined capabilities (up to S_n).
-2. Filter to permutations preserving structural invariants (power, dependency count).
-3. The remaining permutations form the Galois group — closed under composition.
+A `GaloisConnection` pairs two monotone maps (left and right adjoints) between posets. The fundamental property: `f(p) ≤ q ⟺ p ≤ g(q)`. The closure operator `g ∘ f` is always idempotent and extensive, and its fixed points are the "closed elements."
 
-### Algorithm: Solvability Check
+### Layer 2: The Algebra of Capabilities (`field`, `extension`)
 
-1. Compute the **derived series**: G → [G,G] → [[G,G],[G,G]] → ...
-2. If the series reaches the trivial group, the group is **solvable**.
-3. S₅ and A₅ are not solvable — their derived series stabilizes at a non-trivial group.
+A `CapabilityField` models an agent's capability space as an algebraic structure with two operations:
+- **Combination** (addition analogue): merging capabilities
+- **Composition** (multiplication analogue): layering capabilities
 
-### Algorithm: Fundamental Theorem
+Capabilities have a `power` level (like a degree) and optional `dependencies` on other capabilities. The field supports subfield checks, intersection (greatest common subfield), and compositum (least common extension).
 
-1. Compute Gal(K/F) and enumerate all subgroups.
-2. Compute all intermediate fields (subsets of adjoined capabilities).
-3. Map each subgroup H to Fix(H) — capabilities fixed by every element of H.
-4. Verify the correspondence is a bijection.
+A `CapabilityExtension` represents adjoining new capabilities to a base field. It tracks degree, can decompose into a tower of simple extensions, and enumerates all intermediate fields (2ⁿ − 1 for n adjoined capabilities).
+
+### Layer 3: Symmetry Groups (`galois_group`)
+
+The `Permutation` type supports identity, transposition, cycle construction, plus compose, inverse, order, and sign. `PermutationGroup` generates the full group from generators via closure, and provides named groups (Sₙ, Aₙ, Cₙ).
+
+The `GaloisGroup` of an extension is the group of all permutations of adjoined capabilities that preserve structure (same power, same dependency count). Capabilities with identical power levels are interchangeable — this is where symmetry emerges.
+
+### Layer 4: The Fundamental Theorem (`fundamental_theorem`)
+
+`FundamentalTheorem::compute()` establishes the Galois correspondence for an extension:
+- Maps each subgroup of the Galois group to its fixed field
+- Maps each intermediate field to its stabilizer subgroup
+- Verifies the bijection
+- Builds the subgroup lattice
+
+This is the deep result: the structure of subgroups *is* the structure of intermediate capability configurations.
+
+### Layer 5: Properties (`normal`, `solvable`, `splitting`, `fixed`)
+
+- **Normal extensions**: checking if conjugate capabilities are complete, computing normal closures
+- **Solvable groups**: derived series, composition series — determines if capabilities are constructible step-by-step
+- **Splitting fields**: "capability polynomials" whose roots are the needed capabilities; the splitting field is the minimal extension containing all roots
+- **Fixed fields**: given a subgroup, compute exactly which capabilities are invariant
+
+### Layer 6: Constructibility and Agents (`constructible`, `agent`)
+
+`ConstructibilityReport` classifies each capability as:
+- **Trivial** — already in the base field
+- **Constructible** — can be built via solvable extensions
+- **Insolvable** — requires solving an unsolvable extension (the quintic barrier)
+
+`GaloisAgent` ties it all together with a clean API: create agents with base capabilities, extend them, and analyze the resulting Galois-theoretic structure.
 
 ---
 
 ## The Math
 
-### Galois Theory in 60 Seconds
+### Galois Theory (Recap)
 
-Given a field extension K/F (say ℚ(√2,√3)/ℚ), the **Galois group** Gal(K/F) consists of all field automorphisms of K that fix F pointwise. The **Fundamental Theorem of Galois Theory** states:
+Classical Galois theory studies field extensions K/F through the lens of symmetry. The **Galois group** Gal(K/F) is the group of all field automorphisms of K that fix F pointwise. The **fundamental theorem** states:
 
 > There is an order-reversing bijection between subgroups of Gal(K/F) and intermediate fields between F and K.
 
-A group is **solvable** if it has a subnormal series with abelian quotients. The **insolvability of the quintic** (Abel-Ruffini theorem) states that S₅ is not solvable, so general degree-5 polynomials have no radical solution.
+An extension is **Galois** if it's both normal (every irreducible polynomial with a root splits completely) and separable (distinct roots). A group is **solvable** if its derived series terminates at the trivial group. The crowning result:
 
-### Mapping to Agents
+> An extension K/F is solvable (can be built by successive radical extensions) if and only if Gal(K/F) is solvable. Since S₅ is not solvable, the general quintic has no solution by radicals.
 
-- **Field F** = base capability set with combination (`+`) and composition (`×`) rules
-- **Extension K/F** = adjoin new capabilities to F
-- **Galois group** = permutations of new capabilities preserving structural properties
-- **Solvable extension** = can be built as a tower of simple extensions (one capability at a time)
-- **Insolvable extension** = no step-by-step construction exists
+### The Agent-Capability Metaphor
 
-### Key Theorems Implemented
+This crate treats an agent's capabilities as elements of a "field":
+- The **base field** F is the agent's current capability set
+- A **field extension** K/F adds new capabilities
+- **Combination** (field addition): merging capabilities to produce new ones
+- **Composition** (field multiplication): layering capabilities for compound effects
+- The **Galois group** permutes interchangeable capabilities while preserving the base
+- **Normal extensions** ensure conjugate capabilities are all present
+- **Solvable extensions** correspond to incrementally constructible capabilities
 
-| Theorem | Implementation | Module |
-|---|---|---|
-| Galois connection condition: f(p) ≤ q ⟺ p ≤ g(q) | `GaloisConnection::verify()` | `galois_connection` |
-| Fundamental theorem: subgroups ↔ intermediate fields | `FundamentalTheorem::compute()` | `fundamental_theorem` |
-| Abel-Ruffini: S₅ is not solvable | `quintic_is_solvable() → false` | `solvable` |
-| Artin's theorem: [K:Fix(H)] = \|H\| | `FixedField::artin_index()` | `fixed` |
-| Ruler-and-compass constructibility | `is_constructible_degree()` | `constructible` |
-| Gauss-Wantzel: constructible n-gons | `is_constructible_polygon()` | `constructible` |
+The **insolvability of the quintic** translates to: some capability configurations (those with S₅ symmetry) cannot be reached by any sequence of incremental extensions. This is not a practical limitation — it's a mathematical impossibility.
+
+### Constructibility
+
+Following the classical ruler-and-compass analogy:
+- A degree-n extension is constructible iff n is a power of 2
+- A regular n-gon is constructible iff n = 2ᵏ · p₁ · p₂ · … where each pᵢ is a distinct Fermat prime
+- Fermat primes known: 3, 5, 17, 257, 65537
 
 ---
 
-## Testing
+## Test Suite
 
-**111 tests** covering:
+111 tests across 12 modules:
 
-- Poset operations (order, transitivity, join, meet, lattice)
-- Galois connection verification (adjunction condition, closure, kernel)
-- Field operations (combination, composition, subfield, compositum)
-- Extension properties (degree, simplicity, intermediate fields, tower)
-- Permutation group theory (S_n, C_n, A_n, order, sign, center, subgroups)
-- Galois group computation (same-power symmetries, different-power triviality)
-- Fundamental theorem (correspondence bijection, normal subgroups)
-- Normality (conjugate checking, normal closure, Galois condition)
-- Solvability (abelian groups, S₃, S₄, derived series, composition series)
-- Splitting fields (polynomial resolution, degree, normality verification)
-- Fixed fields (full Galois, trivial, Artin index)
-- Constructibility (degree check, polygon construction, per-capability analysis)
-- Agent API (creation, extension, analysis, constructibility checks)
+| Module | Tests | Coverage |
+|---|---|---|
+| `poset` | 6 | Empty, single, chain, antichain, join/meet, powerset |
+| `galois_connection` | 7 | Identity, closure, kernel, closed elements, composition |
+| `field` | 9 | Create, combine, compose, subfield, intersection, compositum |
+| `extension` | 9 | Simple, degree, trivial, minimal, compose, intermediate, tower |
+| `galois_group` | 19 | Permutations, groups (Sₙ, Aₙ, Cₙ), subgroups, center, Galois computation |
+| `fundamental_theorem` | 8 | Correspondence, bijection, lattice, normal subgroups |
+| `normal` | 7 | Normality check, closure, separability, Galois |
+| `solvable` | 10 | Abelian, S₃, S₄, S₅, derived subgroup, composition series |
+| `splitting` | 9 | Polynomials, splitting field, verification, degree |
+| `fixed` | 7 | Full Galois, trivial, subgroup fixed, Artin index |
+| `constructible` | 9 | Analysis, degrees, polygons, insolvable detection |
+| `agent` | 11 | Create, extend, analyze, constructibility, summaries |
+
+Run all tests:
 
 ```bash
-cargo test        # run all 111 tests
-cargo test --doc  # run doc tests
+cargo test
 ```
-
----
-
-## Module Index
-
-| Module | Lines | Tests | Description |
-|---|---|---|---|
-| `poset` | 280 | 6 | Partially ordered sets — foundation for Galois connections |
-| `galois_connection` | 270 | 7 | Adjoint functors between posets |
-| `field` | 258 | 10 | Capability fields with combination/composition |
-| `extension` | 227 | 10 | Field extensions — adding capabilities |
-| `galois_group` | 543 | 20 | Permutation groups and Galois group computation |
-| `fundamental_theorem` | 242 | 8 | Subgroup ↔ intermediate field bijection |
-| `normal` | 208 | 7 | Normal extensions and conjugate capabilities |
-| `solvable` | 221 | 10 | Solvable groups and the insolvability of the quintic |
-| `splitting` | 193 | 9 | Splitting fields for capability conflicts |
-| `fixed` | 175 | 7 | Fixed fields under symmetry subgroups |
-| `constructible` | 279 | 10 | Constructibility analysis and classical results |
-| `agent` | 230 | 11 | High-level `GaloisAgent` API |
-| **Total** | **3160** | **111** | |
-
----
-
-## Dependencies
-
-- [`serde`](https://crates.io/crates/serde) — serialization for all types
-- [`nalgebra`](https://crates.io/crates/nalgebra) — linear algebra (used for permutation representations)
 
 ---
 
