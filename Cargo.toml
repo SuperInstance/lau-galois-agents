@@ -1,0 +1,13 @@
+[package]
+name = "lau-galois-agents"
+version = "0.1.0"
+edition = "2021"
+description = "Galois theory applied to agent capability spaces"
+license = "MIT"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+nalgebra = "0.33"
+
+[dev-dependencies]
+serde_json = "1"
